@@ -1,0 +1,22 @@
+{
+  "name": "bevzilla-smoke",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bevzilla Wellness — Playwright smoke automation (production, 3-env matrix)",
+  "scripts": {
+    "test": "playwright test",
+    "smoke": "playwright test --grep @smoke",
+    "smoke:desktop": "playwright test --grep @smoke --project=desktop-chromium",
+    "smoke:headed": "playwright test --grep @smoke --project=desktop-chromium --headed --workers=1",
+    "smoke:mobile": "playwright test --grep @smoke --project=mobile-chromium --project=mobile-webkit",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "@types/node": "^20.14.0",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.5.4",
+    "winston": "^3.13.1"
+  }
+}

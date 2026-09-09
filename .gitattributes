@@ -1,0 +1,6 @@
+# Normalize text files to LF in the repo. Keep CI/workflow and shell scripts LF in
+# the working tree too, so they run correctly on the Linux GitHub Actions runner.
+* text=auto
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.sh   text eol=lf

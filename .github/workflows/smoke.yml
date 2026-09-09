@@ -1,0 +1,124 @@
+name: Bevzilla Wellness Automation Suite
+
+on:
+  # Daily at 02:30 UTC = 08:00 AM IST
+  schedule:
+    - cron: '30 2 * * *'
+  # Manual trigger from the Actions tab
+  workflow_dispatch:
+  # Also run on pushes to main
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Job-level env so the Slack step's `if:` can read the secret
+    # (a step's own step-level env is NOT visible to that step's `if`).
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        # chromium covers desktop-chromium + mobile-chromium; webkit covers mobile-webkit.
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run smoke suite
+        # Runs whichever projects are enabled in playwright.config.ts.
+        run: npm run smoke
+        env:
+          # Optional: set repo variable BASE_URL to target a different environment.
+          BASE_URL: ${{ vars.BASE_URL }}
+
+      - name: Summarize results
+        id: summary
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs");
+            let tests = 0, failures = 0, skipped = 0;
+            try {
+              const xml = fs.readFileSync("results/junit.xml", "utf8");
+              const root = (xml.match(/<testsuites[^>]*>/) || [""])[0];
+              const num = (attr) => {
+                const m = new RegExp(attr + "=\"(\\d+)\"").exec(root);
+                return m ? parseInt(m[1], 10) : 0;
+              };
+              tests = num("tests");
+              failures = num("failures") + num("errors");
+              skipped = num("skipped");
+            } catch (e) { /* no junit (an earlier step failed) — fall back to job status */ }
+            const passed = Math.max(tests - failures - skipped, 0);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              `tests=${tests}\nfailures=${failures}\nskipped=${skipped}\npassed=${passed}\n`);
+          '
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_number }}
+          path: playwright-report
+          retention-days: 30
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-${{ github.run_number }}
+          path: results/junit.xml
+          retention-days: 30
+
+      - name: Send Slack notification
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT: ${{ github.event_name }}
+          PASSED: ${{ steps.summary.outputs.passed }}
+          FAILURES: ${{ steps.summary.outputs.failures }}
+          SKIPPED: ${{ steps.summary.outputs.skipped }}
+          TESTS: ${{ steps.summary.outputs.tests }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Build the payload with Node (no shell-quoting pitfalls) and POST it.
+          node -e '
+            const s = process.env;
+            const ok = s.JOB_STATUS === "success" && Number(s.FAILURES || 0) === 0;
+            const emoji = ok ? "✅" : "❌";
+            const statusText = ok ? "PASSED" : "FAILED";
+            const color = ok ? "#36a64f" : "#ff0000";
+            const payload = { attachments: [ { color, blocks: [
+              { type: "header", text: { type: "plain_text", text: `${emoji} Bevzilla Wellness Automation Report` } },
+              { type: "section", fields: [
+                { type: "mrkdwn", text: `*Status:*\n${emoji} ${statusText}` },
+                { type: "mrkdwn", text: `*Triggered By:*\n${s.EVENT}` },
+              ] },
+              { type: "divider" },
+              { type: "section", text: { type: "mrkdwn", text: "*🤖 Test Results Summary*" } },
+              { type: "section", fields: [
+                { type: "mrkdwn", text: `*📊 Total:*\n${s.TESTS}` },
+                { type: "mrkdwn", text: `*✅ Passed:*\n${s.PASSED}` },
+              ] },
+              { type: "section", fields: [
+                { type: "mrkdwn", text: `*❌ Failed:*\n${s.FAILURES}` },
+                { type: "mrkdwn", text: `*⚠️ Skipped:*\n${s.SKIPPED}` },
+              ] },
+              { type: "divider" },
+              { type: "section", text: { type: "mrkdwn", text: `*📄 Full report & artifacts:*\n<${s.RUN_URL}|Open the GitHub Actions run>` } },
+              { type: "context", elements: [ { type: "mrkdwn", text: "Bevzilla Wellness Headless | Playwright + TypeScript" } ] },
+            ] } ] };
+            require("fs").writeFileSync("slack-payload.json", JSON.stringify(payload));
+          '
+          curl -sS -X POST -H "Content-type: application/json" --data @slack-payload.json "$SLACK_WEBHOOK_URL"
