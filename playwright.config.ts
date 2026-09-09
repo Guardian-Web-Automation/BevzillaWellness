@@ -1,7 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 import 'dotenv/config';
 
-const BASE_URL = process.env.BASE_URL ?? 'https://bevzillawellness.com';
+// `||` (not `??`) so an EMPTY BASE_URL — e.g. an unset `${{ vars.BASE_URL }}` in CI,
+// which expands to '' — also falls back to the default. With `??`, '' would win and
+// leave baseURL empty, making every relative goto() an "invalid URL".
+const BASE_URL = process.env.BASE_URL || 'https://bevzillawellness.com';
 
 export default defineConfig({
   testDir: './tests',
