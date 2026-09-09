@@ -6,8 +6,6 @@ import { BasePage } from './BasePage';
 //    images and prices, so we scope product locators to the ONE <main> that holds
 //    the visible <h1> (overlays' headings are hidden, so getByRole skips them).
 //  - Price is shown as a plain "$40.00" span; compare-at uses .line-through.
-//  - This product has no numeric qty input and no radio variants (purchase options
-//    are buttons) — so the variant/qty smoke cases self-skip by design.
 export class ProductPage extends BasePage {
   private readonly productMain: Locator;
   readonly title: Locator;
@@ -17,10 +15,6 @@ export class ProductPage extends BasePage {
   readonly comparePrice: Locator;
   readonly saveBadge: Locator;
   readonly addToCartButton: Locator;
-  readonly qtyInput: Locator;
-  readonly qtyIncrease: Locator;
-  readonly qtyDecrease: Locator;
-  readonly variantOptions: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -39,10 +33,6 @@ export class ProductPage extends BasePage {
     this.addToCartButton = this.productMain
       .getByRole('button', { name: /add to (cart|bag).*\$\s?\d/i })
       .first();
-    this.qtyInput = this.productMain.locator('input[type="number"]').first();
-    this.qtyIncrease = this.productMain.getByRole('button', { name: /increase|^\+$|plus/i }).first();
-    this.qtyDecrease = this.productMain.getByRole('button', { name: /decrease|^-$|minus/i }).first();
-    this.variantOptions = this.productMain.getByRole('radio');
   }
 
   async open(handle: string) { await this.goto(`/products/${handle}`); }
@@ -53,6 +43,4 @@ export class ProductPage extends BasePage {
     const m = t.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
     return m ? parseFloat(m[1]) : NaN;
   }
-
-  async hasVariants(): Promise<boolean> { return (await this.variantOptions.count()) > 1; }
 }

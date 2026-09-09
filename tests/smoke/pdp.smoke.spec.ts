@@ -97,33 +97,6 @@ test.describe('PDP — smoke', () => {
     });
   });
 
-  test('BEV-PDP-012 - Selecting a variant keeps price valid and Add to Cart enabled @smoke', async ({ page, collectionPage, productPage }) => {
-    await openSampleProduct(page, collectionPage, productPage);
-    test.skip(!(await productPage.hasVariants()), 'no selectable variants on this product');
-
-    await step('Select a variant and verify price > 0 and Add to Cart enabled', async () => {
-      await productPage.variantOptions.nth(1).click();
-      expect(await productPage.priceValue()).toBeGreaterThan(0);
-      await expect(productPage.addToCartButton).toBeEnabled();
-      log('Variant selected; price valid and Add to Cart enabled');
-    });
-  });
-
-  test('BEV-PDP-016 - Quantity selector updates the quantity @smoke', async ({ page, collectionPage, productPage }) => {
-    await openSampleProduct(page, collectionPage, productPage);
-
-    if (await productPage.qtyInput.count()) {
-      await step('Increase the quantity and verify the value updates', async () => {
-        if (await productPage.qtyIncrease.count()) await productPage.qtyIncrease.click();
-        else await productPage.qtyInput.fill('2');
-        await expect(productPage.qtyInput).toHaveValue(/[2-9]/);
-        log('Quantity selector updated the quantity');
-      });
-    } else {
-      test.skip(true, 'no quantity selector on PDP');
-    }
-  });
-
   test('BEV-PDP-018 - Add to Cart from PDP adds the correct product @smoke', async ({ page, collectionPage, productPage, cartDrawer }) => {
     await openSampleProduct(page, collectionPage, productPage);
 

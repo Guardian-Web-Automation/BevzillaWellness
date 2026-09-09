@@ -12,7 +12,7 @@ End-to-end **smoke** suite for the Bevzilla Wellness storefront (Shopify **Hydro
 | `mobile-chromium` | Pixel 7 |
 | `mobile-webkit` | iPhone 14 |
 
-All 66 smoke cases run on all three → ~198 executions.
+All 64 smoke cases run on all three → ~192 executions.
 
 ## Setup
 
@@ -98,14 +98,14 @@ exist on the live site:
 - **Checkout CTA (BEV-CRT-020)** is only asserted visible/enabled — never clicked through.
 - Pricing assertions are exact and always assert price/subtotal **> 0** (never $0).
 
-## TC coverage (66 automated)
+## TC coverage (64 automated)
 
 | Spec file | TC IDs |
 |---|---|
 | mushroom.smoke.spec.ts | BEV-MCC-002, 008, 009, 015, 016, 017, 020, 021, 024, 025, 026, 027, 051 |
 | protein.smoke.spec.ts | BEV-PCC-002, 005, 006, 012, 013, 014, 017, 018, 020, 021, 031 |
 | flavoured.smoke.spec.ts | BEV-FCC-002, 005, 007, 012, 013, 014, 017, 018, 020, 021, 032 |
-| pdp.smoke.spec.ts | BEV-PDP-002, 003, 004, 005, 006, 012, 016, 018, 019, 033 |
+| pdp.smoke.spec.ts | BEV-PDP-002, 003, 004, 005, 006, 018, 019, 033 |
 | cart.smoke.spec.ts | BEV-CRT-001, 005, 006, 007, 008, 010, 011, 012, 020 |
 | search.smoke.spec.ts | BEV-SRCH-001, 003, 006, 017 |
 | home.smoke.spec.ts | BEV-HOME-001, 003, 008, 023 |
