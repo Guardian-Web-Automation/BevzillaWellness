@@ -22,7 +22,10 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { open: process.env.CI ? 'never' : 'on-failure' }],
-    ...(process.env.CI ? [['junit', { outputFile: 'results/junit.xml' }] as const] : []),
+    // In CI: clean failure annotations in the Actions UI + JUnit for the Slack summary.
+    ...(process.env.CI
+      ? ([['github'], ['junit', { outputFile: 'results/junit.xml' }]] as const)
+      : []),
   ],
   use: {
     baseURL: BASE_URL,
