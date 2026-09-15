@@ -40,10 +40,17 @@ test.describe('Global — smoke', () => {
     });
   });
 
-  test('BEV-GLOB-006 - Cart count persists when navigating between pages @smoke', async ({ page, collectionPage, header }) => {
+  test('BEV-GLOB-006 - Cart count persists when navigating between pages @smoke', async ({ page, collectionPage, header, cartDrawer }) => {
     await step(`Open the ${collections.mushroom} collection and add the first product`, async () => {
       await collectionPage.openCollection(collections.mushroom);
       await collectionPage.addToCartButton(collectionPage.cardByIndex(0)).click();
+      // Add-to-cart is an async fetch (Hydrogen intercepts the form) and the header
+      // count updates optimistically before the server cart cookie is committed.
+      // Wait for the add to actually land (drawer/line item visible) — otherwise the
+      // navigation below cancels the in-flight add and the fresh page reads an empty
+      // server cart. Same guard as BEV-CRT-012.
+      await cartDrawer.root.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+      await expect(cartDrawer.lineItems.first()).toBeVisible();
     });
 
     const count = await step('Read the header cart count after adding', async () => {
@@ -55,9 +62,9 @@ test.describe('Global — smoke', () => {
 
     await step('Navigate to Home and verify the cart count is unchanged', async () => {
       await page.goto('/');
-      const after = await header.cartCountValue();
-      log(`Header cart count after navigation is ${after}`);
-      expect(after).toBe(count);
+      // The header re-hydrates the cart on load, so poll rather than reading immediately.
+      await expect.poll(() => header.cartCountValue(), { timeout: 10000 }).toBe(count);
+      log(`Header cart count after navigation is ${await header.cartCountValue()}`);
     });
   });
 
