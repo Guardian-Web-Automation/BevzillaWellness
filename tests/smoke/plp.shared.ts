@@ -49,8 +49,10 @@ export function plpSmoke(opts: { title: string; handle: string; expectedCount: n
           await expect(collectionPage.image(card)).toBeVisible();
           await expect(collectionPage.title(card)).toBeVisible();
           await expect(collectionPage.price(card)).toBeVisible();
-          await expect(collectionPage.addToCartButton(card)).toBeVisible();
-          log('Card shows image, title, price and Add to Cart');
+          // The purchase CTA reads "Add to Cart" in stock, or "Sold out" when the
+          // product is out of stock — both are valid mandatory controls on a card.
+          await expect(collectionPage.purchaseControl(card)).toBeVisible();
+          log('Card shows image, title, price and a purchase CTA');
         });
       });
 
@@ -150,10 +152,14 @@ export function plpSmoke(opts: { title: string; handle: string; expectedCount: n
 
     if (ids.atcAdds)
       test(`${ids.atcAdds} - Add to Cart from the card adds the correct product @smoke`, async ({ collectionPage, cartDrawer }) => {
-        const name = await step(`Open the ${handle} collection and add the first product`, async () => {
-          await collectionPage.openCollection(handle);
-          const n = await collectionPage.nameOf(collectionPage.cardByIndex(0));
-          await collectionPage.addToCartButton(collectionPage.cardByIndex(0)).click();
+        await step(`Open the ${handle} collection`, () => collectionPage.openCollection(handle));
+        const purchasable = await collectionPage.purchasableCards.count();
+        test.skip(purchasable === 0, 'every product on this collection is sold out — nothing to add');
+
+        const name = await step('Add the first purchasable product', async () => {
+          const card = collectionPage.purchasableCards.first();
+          const n = await collectionPage.nameOf(card);
+          await collectionPage.addToCartButton(card).click();
           log(`Added "${n}"`);
           return n;
         });
@@ -170,8 +176,11 @@ export function plpSmoke(opts: { title: string; handle: string; expectedCount: n
           return c;
         });
 
-        await step('Add the first product and verify the count increments by 1', async () => {
-          await collectionPage.addToCartButton(collectionPage.cardByIndex(0)).click();
+        const purchasable = await collectionPage.purchasableCards.count();
+        test.skip(purchasable === 0, 'every product on this collection is sold out — nothing to add');
+
+        await step('Add the first purchasable product and verify the count increments by 1', async () => {
+          await collectionPage.addToCartButton(collectionPage.purchasableCards.first()).click();
           await expect.poll(() => header.cartCountValue()).toBe(before + 1);
           log(`Header cart count after: ${await header.cartCountValue()}`);
         });
@@ -179,9 +188,11 @@ export function plpSmoke(opts: { title: string; handle: string; expectedCount: n
 
     if (ids.atcTwice)
       test(`${ids.atcTwice} - Adding the same product twice increments its quantity @smoke`, async ({ collectionPage, cartDrawer }) => {
-        const name = await step(`Open the ${handle} collection and add the first product`, async () => {
-          await collectionPage.openCollection(handle);
-          const n = await collectionPage.nameOf(collectionPage.cardByIndex(0));
+        await step(`Open the ${handle} collection`, () => collectionPage.openCollection(handle));
+        test.skip((await collectionPage.purchasableCards.count()) === 0, 'every product on this collection is sold out — nothing to add');
+
+        const name = await step('Add the first purchasable product', async () => {
+          const n = await collectionPage.nameOf(collectionPage.purchasableCards.first());
           await collectionPage.addToCartButton(collectionPage.card(n)).click();
           await expect(cartDrawer.line(n)).toBeVisible();
           log(`Added "${n}" (1st time)`);
@@ -200,11 +211,11 @@ export function plpSmoke(opts: { title: string; handle: string; expectedCount: n
     if (ids.atcMultiple)
       test(`${ids.atcMultiple} - Adding multiple different products lists them all in the cart @smoke`, async ({ collectionPage, cartDrawer }) => {
         await step(`Open the ${handle} collection`, () => collectionPage.openCollection(handle));
-        const total = await collectionPage.productCards.count();
-        test.skip(total < 2, 'need at least two products');
+        const total = await collectionPage.purchasableCards.count();
+        test.skip(total < 2, 'need at least two purchasable (in-stock) products');
 
-        const name0 = await step('Add the first product and wait for it to land', async () => {
-          const n = await collectionPage.nameOf(collectionPage.cardByIndex(0));
+        const name0 = await step('Add the first purchasable product and wait for it to land', async () => {
+          const n = await collectionPage.nameOf(collectionPage.purchasableCards.nth(0));
           await collectionPage.addToCartButton(collectionPage.card(n)).click();
           // Add is an async fetch — wait for it to land before navigating away, else
           // re-opening the collection cancels the in-flight add and the item is lost.
@@ -213,9 +224,9 @@ export function plpSmoke(opts: { title: string; handle: string; expectedCount: n
           return n;
         });
 
-        const name1 = await step('Add a second, different product', async () => {
+        const name1 = await step('Add a second, different purchasable product', async () => {
           await collectionPage.openCollection(handle);
-          const n = await collectionPage.nameOf(collectionPage.cardByIndex(1));
+          const n = await collectionPage.nameOf(collectionPage.purchasableCards.nth(1));
           await collectionPage.addToCartButton(collectionPage.card(n)).click();
           log(`Added second product "${n}"`);
           return n;

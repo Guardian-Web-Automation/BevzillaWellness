@@ -3,6 +3,7 @@ import { BasePage } from './BasePage';
 
 export class CollectionPage extends BasePage {
   readonly productCards: Locator;
+  readonly purchasableCards: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -14,6 +15,14 @@ export class CollectionPage extends BasePage {
     this.productCards = page
       .locator('section[aria-labelledby="plp-choose-brew-title"]')
       .locator('div:has(> a[href*="/products/"] > img):has(form[action="/cart"])');
+    // Cards that can actually be added to cart. An out-of-stock product keeps the
+    // same card markup but its cart-form button reads "Sold out" (disabled) instead
+    // of "Add to Cart", so it has no button matching the ATC name — filtering on that
+    // button excludes sold-out cards. Lets the add-to-cart tests pick a buyable product
+    // (and skip when a whole collection is sold out) instead of hard-failing on stock.
+    this.purchasableCards = this.productCards.filter({
+      has: page.getByRole('button', { name: /add to cart|add to bag/i }),
+    });
   }
 
   async openCollection(handle: string) { await this.goto(`/collections/${handle}`); }
@@ -34,6 +43,9 @@ export class CollectionPage extends BasePage {
   comparePrice(card: Locator): Locator { return card.locator('.line-through, s, del'); }
   saveBadge(card: Locator): Locator { return card.getByText(/save\s*\d+\s*%/i); }
   addToCartButton(card: Locator): Locator { return card.getByRole('button', { name: /add to cart|add to bag/i }).first(); }
+  // The card's purchase control — the cart-form button, whether it reads "Add to Cart"
+  // or "Sold out". Used to assert the CTA exists without requiring the product to be in stock.
+  purchaseControl(card: Locator): Locator { return card.locator('form[action="/cart"] button').first(); }
   productLink(card: Locator): Locator { return card.locator('a[href*="/products/"]').first(); }
 
   async addToCart(name: string) { await this.addToCartButton(this.card(name)).click(); }
